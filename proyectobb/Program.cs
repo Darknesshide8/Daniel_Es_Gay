@@ -604,7 +604,7 @@ class Program
                     break;
                 }
 
-                // Aquí se pueden agregar verificaciones adicionales para trampas o beneficios.
+            
                 if (board[checkX, checkY] == 'T')
                 {
                     System.Console.WriteLine($"{token.Character.Name} ha caído en una trampa al intentar moverse.");
@@ -860,7 +860,7 @@ class Program
             {
                 bool isPlayerToken = false;
 
-                for (int p = 0; p < playerTokens.Count; p++)//estos for que tienes aca dentro debes encapsularlos en un metodo que ubique a los personajes mejor
+                for (int p = 0; p < playerTokens.Count; p++)
                 {
                     foreach (var token in playerTokens[p])
                     {
