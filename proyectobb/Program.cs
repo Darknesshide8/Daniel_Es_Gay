@@ -47,7 +47,7 @@ class Program
             }
 
             char[,] board = GenerateBoard(size);//Genera el tablero del juego
-            PlaceGoal(board);//Coloca la meta en el tablero
+            
             DisplayInstructions();//Esto es para mostrar las instrucciones del juego
             DisplayStoryIntro();//Esto para mostrar la historia, es obvio XD
             DisplayBoard(board, playerTokens);//Muestra el tablero inicial
@@ -105,22 +105,120 @@ class Program
         } while (!int.TryParse(Console.ReadLine() ?? string.Empty, out tokenCount) || (tokenCount < 1 || tokenCount > 2));//Esto es para validar la entrada.
         return tokenCount;//devuelve la cantidad válida de fichas seleccionadas.
     }
-
-    static char[,] GenerateBoard(int size)
+   
+   static char[,] GenerateBoard(int size)
+{
+    char[,] board;
+    do
     {
-        char[,] board = new char[size, size];//crea un tablero bidimensional
-
-        //Este ciclo como bien se hace notar, es para inicializar todas las casillas con '.'
+        board = new char[size, size];
+        
+        // Inicializar todo como vacío
         for (int i = 0; i < size; i++)
             for (int j = 0; j < size; j++)
                 board[i, j] = '.';
-        PlaceRandomElements(board, 'X', 65); //Esto es para colocar obstáculos
-        PlaceRandomElements(board, 'T', 3); //Esto para trampas
-        PlaceRandomElements(board, 'B', 5); //Esto para beneficios
-        PlaceRandomElements(board, 'P', 3); //Esto para portales
-        return board; //Devuelve el tablero generado
+
+        // Colocar elementos aleatorios primero
+        PlaceRandomElements(board, 'X', 65);
+        PlaceRandomElements(board, 'T', 3);
+        PlaceRandomElements(board, 'B', 5);
+        PlaceRandomElements(board, 'P', 3);
+
+        // Colocar la meta al final (Porque me salian DOS) XD 
+        PlaceGoal(board); 
+
+    } while (!IsBoardAccessible(board)); // Validar accesibilidad
+    
+    return board;
+}
+
+static void PlaceGoal(char[,] board)
+{
+    int goalX, goalY;
+    int maxAttempts = 100; // Evitar bucles infinitos
+    do
+    {
+        goalX = rand.Next(board.GetLength(0));
+        goalY = rand.Next(board.GetLength(1));
+        maxAttempts--;
+    } 
+    while ((board[goalX, goalY] != '.' || !IsGoalAccessible(board, goalX, goalY)) && maxAttempts > 0);
+
+    if (maxAttempts > 0)
+        board[goalX, goalY] = 'G';
+    else
+        throw new Exception("No se pudo colocar la meta en una posición válida.");
+}
+
+static bool IsGoalAccessible(char[,] board, int goalX, int goalY)
+{
+    // La meta debe tener al menos una casilla adyacente libre
+    int[] dx = { -1, 1, 0, 0 };
+    int[] dy = { 0, 0, -1, 1 };
+    for (int i = 0; i < 4; i++)
+    {
+        int x = goalX + dx[i];
+        int y = goalY + dy[i];
+        if (x >= 0 && x < board.GetLength(0) && y >= 0 && y < board.GetLength(1) && board[x, y] != 'X')
+            return true;
+    }
+    return false;
+}
+
+
+static bool IsBoardAccessible(char[,] board)
+{
+    int size = board.GetLength(0);
+    bool[,] visited = new bool[size, size];
+    int goalX = -1, goalY = -1;
+
+    // Encontrar la posición de la meta 'G'
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            if (board[i, j] == 'G')
+            {
+                goalX = i;
+                goalY = j;
+                break;
+            }
+        }
+        if (goalX != -1) break;
     }
 
+    if (goalX == -1) return false; // No hay meta
+
+    // DFS desde la meta
+    DFS(board, goalX, goalY, visited);
+
+    // Verificar que todas las casillas accesibles (. T B P) estén visitadas
+    for (int i = 0; i < size; i++)
+    {
+        for (int j = 0; j < size; j++)
+        {
+            if (board[i, j] != 'X' && !visited[i, j])
+                return false;
+        }
+    }
+    return true;
+}
+
+static void DFS(char[,] board, int x, int y, bool[,] visited)
+{
+    if (x < 0 || x >= board.GetLength(0) || y < 0 || y >= board.GetLength(1) || visited[x, y] || board[x, y] == 'X')
+        return;
+
+    visited[x, y] = true;
+
+    // Explorar direcciones adyacentes
+    DFS(board, x + 1, y, visited);
+    DFS(board, x - 1, y, visited);
+    DFS(board, x, y + 1, visited);
+    DFS(board, x, y - 1, visited);
+}
+
+    
     static void PlaceRandomElements(char[,] board, char element, int count)
     {
         for (int i = 0; i < count; i++)
@@ -128,33 +226,25 @@ class Program
     }
 
     static void PlaceRandomElement(char[,] board, char element)
+{
+    int x, y;
+    do
     {
-        int x, y;
-        do
-        {
-            x = rand.Next(board.GetLength(0)); //Genera una posición aleatoria en X
-            y = rand.Next(board.GetLength(1)); //Genera una posición aleatoria en Y
-        } while (board[x, y] != '.'); //Esto es para asegurar que la posición esté vacía
+        x = rand.Next(board.GetLength(0));
+        y = rand.Next(board.GetLength(1));
+    } 
+    // Solo posiciones vacías (.) o la meta (G) si el elemento a colocar es 'G'
+    while (board[x, y] != '.' && (element != 'G' || board[x, y] != 'G')); 
 
-        board[x, y] = element; //Coloca el elemento en una posición aleatoria.
+    // Si el elemento no es la meta, no puede colocarse sobre otra 'G', yo me entiendo, es que cuando lo hice me salían dos metas xD
+    if (element != 'G' && board[x, y] == 'G') return; 
 
-        // Si el elemento es un portal, agregar su posición a la lista
-        if (element == 'P')
-            portals.Add((x, y));
-    }
-
-
-    static void PlaceGoal(char[,] board)
-    {
-        int goalX, goalY;
-        do
-        {
-            goalX = rand.Next(board.GetLength(0));
-            goalY = rand.Next(board.GetLength(1));
-        } while (board[goalX, goalY] != '.');
-        board[goalX, goalY] = 'G';
-    }
-
+    board[x, y] = element;
+    
+    // Si es un portal, agregar a la lista
+    if (element == 'P')
+        portals.Add((x, y));
+}
     static void PlayGame(char[,] board, List<List<Token>> playerTokens)
     {
         while (true)
